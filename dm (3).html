@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>네일더리플 인스타그램 자동화 시뮬레이터</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen">
+    <!-- Custom Toast Notification (No alert() used) -->
+    <div id="toastMessage" class="fixed top-5 left-1/2 -translate-x-1/2 z-50 hidden bg-slate-800 border border-pink-500/50 text-white px-5 py-3 rounded-2xl shadow-2xl text-sm flex items-center gap-2.5 transition-all duration-300">
+        <i class="fa-solid fa-circle-info text-pink-400"></i>
+        <span id="toastText">안내 메시지</span>
+    </div>
+
+    <!-- Safe External Link Modal (Prevents 404 inside iframe preview) -->
+    <div id="linkModal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-slate-800 border border-slate-700 rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b border-slate-700 pb-3">
+                <h3 id="modalTitle" class="font-bold text-white text-base flex items-center gap-2">
+                    <i class="fa-solid fa-arrow-up-right-from-square text-pink-400"></i> 외부 채널 이동
+                </h3>
+                <button onclick="closeLinkModal()" class="text-slate-400 hover:text-white p-1">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p id="modalDesc" class="text-xs text-slate-300 leading-relaxed">
+                미리보기 환경에서는 보안상 외부 페이지가 차단될 수 있습니다. 아래 버튼을 눌러 새 창으로 열거나 주소를 복사해 주세요.
+            </p>
+            <div class="bg-slate-900 p-2.5 rounded-xl border border-slate-700 flex items-center justify-between gap-2">
+                <span id="modalUrlText" class="text-xs text-pink-400 truncate font-mono"></span>
+                <button onclick="copyModalUrl()" class="text-xs bg-slate-700 hover:bg-slate-600 text-white px-2.5 py-1.5 rounded-lg whitespace-nowrap transition-colors">
+                    <i class="fa-regular fa-copy mr-1"></i>복사
+                </button>
+            </div>
+            <div class="flex gap-2 pt-1">
+                <button onclick="closeLinkModal()" class="flex-1 py-2.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-slate-200 text-xs font-medium transition-colors">
+                    닫기
+                </button>
+                <a id="modalDirectLink" href="#" target="_blank" rel="noopener noreferrer" onclick="closeLinkModal()" class="flex-1 py-2.5 rounded-xl bg-pink-600 hover:bg-pink-500 text-white text-xs font-medium text-center transition-colors">
+                    새 창에서 열기
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-6xl mx-auto p-4 md:p-8">
+        <!-- Header -->
+        <header class="mb-8 border-b border-slate-800 pb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-pink-500 via-purple-500 to-indigo-500 flex items-center justify-center text-white text-xl font-bold">
+                        <i class="fa-brands fa-instagram"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-2xl font-bold text-white flex items-center gap-2">
+                            네일더리플 <span class="text-sm font-normal text-pink-400">@__the_ripple</span>
+                        </h1>
+                        <p class="text-slate-400 text-sm">인스타그램 릴스/게시물 댓글 자동 DM 응답 시뮬레이터</p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Meta 공식 API 연동 준비완료
+                </span>
+            </div>
+        </header>
+
+        <!-- Main Layout -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Left Controls: Simulator Inputs -->
+            <div class="lg:col-span-5 space-y-6">
+                <!-- Tab Switching -->
+                <div class="bg-slate-800/80 rounded-2xl p-1 border border-slate-700/60 flex text-sm">
+                    <button id="tabSimBtn" onclick="switchTab('sim')" class="flex-1 py-2.5 rounded-xl font-medium transition-all duration-200 bg-pink-600 text-white shadow-lg">
+                        <i class="fa-solid fa-play text-xs mr-1.5"></i> 시뮬레이터 테스트
+                    </button>
+                    <button id="tabGuideBtn" onclick="switchTab('guide')" class="flex-1 py-2.5 rounded-xl font-medium text-slate-400 hover:text-slate-200 transition-all duration-200">
+                        <i class="fa-solid fa-gear text-xs mr-1.5"></i> 구축 가이드
+                    </button>
+                </div>
+
+                <!-- Simulator Panel -->
+                <div id="simPanel" class="space-y-6">
+                    <!-- Step 1: Reel Comment Simulation -->
+                    <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/60 space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-md font-semibold text-white flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-full bg-pink-500/20 text-pink-400 text-xs flex items-center justify-center font-bold">1</span>
+                                릴스 댓글 작성 시뮬레이션
+                            </h2>
+                            <span class="text-xs text-slate-400">고객 시점</span>
+                        </div>
+                        
+                        <p class="text-xs text-slate-400 leading-relaxed">
+                            릴스 게시물에 아래 감지 키워드 중 하나가 포함된 댓글을 달면 자동 응답 트리거가 발동합니다.
+                        </p>
+
+                        <!-- Keywords Pills -->
+                        <div class="space-y-1.5">
+                            <label class="text-xs text-slate-400 font-medium">감지 트리거 키워드:</label>
+                            <div class="flex flex-wrap gap-1.5" id="keywordContainer">
+                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('예약 문의드려요!')">예약</span>
+                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('이달의 아트 가격 얼마인가요?')">가격</span>
+                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('위치 주차 가능한가요?')">위치</span>
+                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('이달의아트 디자인 보여주세요')">이달의아트</span>
+                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('네일 시술 얼마예요?')">얼마</span>
+                            </div>
+                        </div>
+
+                        <!-- Comment Input Mock -->
+                        <div class="space-y-2 pt-2">
+                            <label for="userCommentInput" class="text-xs text-slate-300 font-medium">고객 댓글 작성하기:</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="userCommentInput" placeholder="예: 예약 방법이나 이달의아트 가격 얼마인가요?" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 transition-all">
+                                <button onclick="runSimulation()" class="bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white font-medium px-4 py-2.5 rounded-xl text-sm shadow-md transition-all flex items-center gap-1.5 whitespace-nowrap">
+                                    <i class="fa-solid fa-paper-plane text-xs"></i> 작성
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Bot Action Log -->
+                    <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/60 space-y-3">
+                        <h2 class="text-md font-semibold text-white flex items-center justify-between">
+                            <span class="flex items-center gap-2">
+                                <span class="w-6 h-6 rounded-full bg-purple-500/20 text-purple-400 text-xs flex items-center justify-center font-bold">2</span>
+                                챗봇 자동화 시스템 동작 과정
+                            </span>
+                            <button onclick="resetSim()" class="text-xs text-slate-400 hover:text-pink-400 transition-colors">
+                                <i class="fa-solid fa-rotate-right mr-1"></i> 초기화
+                            </button>
+                        </h2>
+
+                        <div id="actionLog" class="bg-slate-950/80 rounded-xl p-3.5 border border-slate-800 text-xs font-mono space-y-2 min-h-[140px] max-h-[200px] overflow-y-auto custom-scrollbar">
+                            <div class="text-slate-500">// 댓글을 작성하면 자동 응답 시퀀스가 시작됩니다.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Guide Panel (Hidden by default) -->
+                <div id="guidePanel" class="hidden space-y-4">
+                    <div class="bg-slate-800/50 rounded-2xl p-5 border border-slate-700/60 space-y-4">
+                        <h2 class="text-md font-semibold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-bolt text-amber-400"></i> ManyChat 연동 4단계 레시피
+                        </h2>
+                        
+                        <ol class="space-y-3 text-xs text-slate-300">
+                            <li class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-1">
+                                <div class="font-semibold text-pink-400">1. 계정 연동</div>
+                                <p class="text-slate-400">인스타그램 프로페셔널 계정을 페이스북 페이지와 연동한 후 ManyChat.com에 연결합니다.</p>
+                            </li>
+                            <li class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-1">
+                                <div class="font-semibold text-pink-400">2. 댓글 트리거 설정</div>
+                                <p class="text-slate-400">New Automation ➔ 'User comments on a Post/Reel' 선택 후 감지할 키워드(`예약`, `가격` 등) 등록</p>
+                            </li>
+                            <li class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-1">
+                                <div class="font-semibold text-pink-400">3. 공개 답글 & DM 템플릿 구성</div>
+                                <p class="text-slate-400">1차 공개 댓글 자동 작성 및 버튼이 포함된 DM 카드 발송 메시지 세팅</p>
+                            </li>
+                            <li class="p-3 bg-slate-900/60 rounded-xl border border-slate-800 space-y-1">
+                                <div class="font-semibold text-pink-400">4. 외부 링크 연결</div>
+                                <p class="text-slate-400">버튼 클릭 시 `카카오톡 채널(pf.kakao.com/_GwnxoG)` 및 `인포크링크`로 바로 전환되도록 설정</p>
+                            </li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Visual Mockups: Instagram Preview -->
+            <div class="lg:col-span-7 grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Mobile Screen 1: Reel Comment Preview -->
+                <div class="bg-black rounded-[36px] p-3 border-4 border-slate-700 shadow-2xl relative overflow-hidden flex flex-col h-[520px]">
+                    <!-- Phone Notch & Header -->
+                    <div class="flex justify-between items-center px-4 py-2 text-xs text-slate-400 border-b border-slate-800/80">
+                        <span><i class="fa-solid fa-play text-pink-500 text-[10px] mr-1"></i> 릴스 피드</span>
+                        <span class="text-[10px] text-slate-500">네일더리플</span>
+                    </div>
+
+                    <!-- Reel Video Background Mock -->
+                    <div class="relative flex-1 bg-gradient-to-b from-purple-950/40 via-slate-900 to-slate-950 rounded-2xl overflow-hidden flex flex-col justify-end p-4 border border-slate-800/50 my-2">
+                        <!-- Reel Content Mock -->
+                        <div class="absolute inset-0 flex items-center justify-center opacity-20">
+                            <i class="fa-solid fa-gem text-7xl text-pink-400"></i>
+                        </div>
+                        <div class="relative z-10 space-y-2">
+                            <div class="flex items-center gap-2">
+                                <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-pink-500 to-amber-500 p-0.5">
+                                    <div class="w-full h-full bg-black rounded-full flex items-center justify-center text-[10px] font-bold text-white">NR</div>
+                                </div>
+                                <span class="text-xs font-semibold text-white">__the_ripple</span>
+                                <span class="text-[10px] text-pink-400 bg-pink-500/10 px-1.5 py-0.5 rounded border border-pink-500/20">이달의 아트✨</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300 line-clamp-2">은은한 리플 그라데이션 시술💅 예약 문의는 댓글을 남겨주시면 DM을 보내드려요!</p>
+                        </div>
+                    </div>
+
+                    <!-- Reel Comments Area -->
+                    <div class="bg-slate-900/90 rounded-2xl p-3 border border-slate-800 space-y-2.5 h-[190px] flex flex-col justify-between">
+                        <div class="text-[11px] font-medium text-slate-400 border-b border-slate-800 pb-1.5 flex justify-between items-center">
+                            <span>실시간 댓글</span>
+                            <span class="text-[9px] text-pink-400">자동응답 감지 중</span>
+                        </div>
+
+                        <div id="commentsList" class="space-y-2 overflow-y-auto flex-1 custom-scrollbar pr-1">
+                            <div class="text-[11px] text-slate-500 italic text-center py-4">댓글을 작성하여 시뮬레이션을 실행해 보세요.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mobile Screen 2: DM Inbox Preview -->
+                <div class="bg-black rounded-[36px] p-3 border-4 border-slate-700 shadow-2xl relative overflow-hidden flex flex-col h-[520px]">
+                    <!-- Phone Header -->
+                    <div class="flex items-center gap-2.5 px-3 py-2 border-b border-slate-800/80">
+                        <div class="w-6 h-6 rounded-full bg-pink-600 flex items-center justify-center text-white text-[10px]">
+                            <i class="fa-brands fa-instagram"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="text-xs font-bold text-white flex items-center gap-1">
+                                네일더리플
+                                <i class="fa-solid fa-circle-check text-blue-400 text-[10px]"></i>
+                            </div>
+                            <div class="text-[9px] text-emerald-400">● 챗봇 응답 대기 중</div>
+                        </div>
+                    </div>
+
+                    <!-- DM Messages Container -->
+                    <div id="dmContainer" class="flex-1 p-3 overflow-y-auto space-y-3 custom-scrollbar my-1 text-xs">
+                        <div class="text-center py-6 text-slate-500 text-[11px]">
+                            <i class="fa-regular fa-paper-plane text-2xl mb-2 block text-slate-600"></i>
+                            댓글 작성 시 이곳에 발송되는<br>DM 메시지 카드를 확인하세요.
+                        </div>
+                    </div>
+
+                    <!-- DM Action Bar Mock -->
+                    <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2 px-1">
+                        <input type="text" readonly placeholder="메시지 보내기..." class="bg-slate-900 text-slate-500 text-[11px] rounded-full px-3 py-2 flex-1 outline-none border border-slate-800">
+                        <div class="w-7 h-7 rounded-full bg-pink-600 flex items-center justify-center text-white text-xs">
+                            <i class="fa-solid fa-heart"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let toastTimeout;
+        let currentModalUrl = '';
+
+        function showToast(message) {
+            const toast = document.getElementById('toastMessage');
+            const toastText = document.getElementById('toastText');
+            toastText.textContent = message;
+            toast.classList.remove('hidden');
+            
+            clearTimeout(toastTimeout);
+            toastTimeout = setTimeout(() => {
+                toast.classList.add('hidden');
+            }, 3500);
+        }
+
+        function openSafeLink(title, url) {
+            currentModalUrl = url;
+            document.getElementById('modalTitle').innerHTML = `<i class="fa-solid fa-arrow-up-right-from-square text-pink-400"></i> ${title}`;
+            document.getElementById('modalUrlText').textContent = url;
+            document.getElementById('modalDirectLink').href = url;
+            document.getElementById('linkModal').classList.remove('hidden');
+        }
+
+        function closeLinkModal() {
+            document.getElementById('linkModal').classList.add('hidden');
+        }
+
+        function copyModalUrl() {
+            const tempInput = document.createElement('input');
+            tempInput.value = currentModalUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            showToast('링크 주소가 클립보드에 복사되었습니다!');
+        }
+
+        function fillComment(text) {
+            document.getElementById('userCommentInput').value = text;
+        }
+
+        function switchTab(tab) {
+            const simBtn = document.getElementById('tabSimBtn');
+            const guideBtn = document.getElementById('tabGuideBtn');
+            const simPanel = document.getElementById('simPanel');
+            const guidePanel = document.getElementById('guidePanel');
+
+            if(tab === 'sim') {
+                simBtn.className = "flex-1 py-2.5 rounded-xl font-medium transition-all duration-200 bg-pink-600 text-white shadow-lg";
+                guideBtn.className = "flex-1 py-2.5 rounded-xl font-medium text-slate-400 hover:text-slate-200 transition-all duration-200";
+                simPanel.classList.remove('hidden');
+                guidePanel.classList.add('hidden');
+            } else {
+                guideBtn.className = "flex-1 py-2.5 rounded-xl font-medium transition-all duration-200 bg-pink-600 text-white shadow-lg";
+                simBtn.className = "flex-1 py-2.5 rounded-xl font-medium text-slate-400 hover:text-slate-200 transition-all duration-200";
+                guidePanel.classList.remove('hidden');
+                simPanel.classList.add('hidden');
+            }
+        }
+
+        function addLog(text, type = 'info') {
+            const logContainer = document.getElementById('actionLog');
+            const time = new Date().toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            
+            let colorClass = 'text-slate-300';
+            if (type === 'trigger') colorClass = 'text-pink-400 font-semibold';
+            if (type === 'reply') colorClass = 'text-amber-300';
+            if (type === 'dm') colorClass = 'text-emerald-400 font-semibold';
+
+            const logEntry = document.createElement('div');
+            logEntry.className = colorClass;
+            logEntry.innerHTML = `<span class="text-slate-600">[${time}]</span> ${text}`;
+            
+            logContainer.appendChild(logEntry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+
+        function resetSim() {
+            document.getElementById('userCommentInput').value = '';
+            document.getElementById('actionLog').innerHTML = '<div class="text-slate-500">// 댓글을 작성하면 자동 응답 시퀀스가 시작됩니다.</div>';
+            document.getElementById('commentsList').innerHTML = '<div class="text-[11px] text-slate-500 italic text-center py-4">댓글을 작성하여 시뮬레이션을 실행해 보세요.</div>';
+            document.getElementById('dmContainer').innerHTML = `
+                <div class="text-center py-6 text-slate-500 text-[11px]">
+                    <i class="fa-regular fa-paper-plane text-2xl mb-2 block text-slate-600"></i>
+                    댓글 작성 시 이곳에 발송되는<br>DM 메시지 카드를 확인하세요.
+                </div>`;
+        }
+
+        function runSimulation() {
+            const input = document.getElementById('userCommentInput');
+            const userComment = input.value.trim();
+
+            if (!userComment) {
+                showToast('댓글 내용을 입력해주세요!');
+                return;
+            }
+
+            // Reset view for clean animation
+            document.getElementById('actionLog').innerHTML = '';
+            
+            // 1. Log Comment Creation
+            addLog(`고객 댓글 입력: "${userComment}"`);
+
+            // Update Reel Comment UI
+            const commentsList = document.getElementById('commentsList');
+            commentsList.innerHTML = `
+                <div class="p-2 rounded-xl bg-slate-800/80 border border-slate-700/60 space-y-1">
+                    <div class="flex justify-between text-[10px]">
+                        <span class="font-bold text-slate-200">@guest_user</span>
+                        <span class="text-slate-500">방금 전</span>
+                    </div>
+                    <div class="text-[11px] text-slate-100">${userComment}</div>
+                </div>
+            `;
+
+            // 2. Keyword Detection
+            setTimeout(() => {
+                const keywords = ['예약', '가격', '위치', '주차', '이달의아트', '얼마', '디자인'];
+                const matched = keywords.filter(kw => userComment.includes(kw));
+
+                if (matched.length > 0) {
+                    addLog(`키워드 감지 성공: [${matched.join(', ')}]`, 'trigger');
+
+                    // 3. Auto Public Comment Reply
+                    setTimeout(() => {
+                        addLog(`1차 공개 답글 자동 작성 완료`, 'reply');
+                        
+                        commentsList.innerHTML += `
+                            <div class="p-2 rounded-xl bg-pink-950/40 border border-pink-800/50 space-y-1 ml-3">
+                                <div class="flex justify-between text-[10px]">
+                                    <span class="font-bold text-pink-300">@__the_ripple <i class="fa-solid fa-circle-check text-[9px]"></i></span>
+                                    <span class="text-pink-400/60">방금 전</span>
+                                </div>
+                                <div class="text-[10px] text-pink-100">안녕하세요 @guest_user님! 문의해주신 안내를 DM으로 발송해 드렸습니다. 📩 확인 부탁드려요!</div>
+                            </div>
+                        `;
+
+                        // 4. Send Interactive DM
+                        setTimeout(() => {
+                            addLog(`2차 대화형 DM 메시지 카드 발송 완료`, 'dm');
+
+                            const dmContainer = document.getElementById('dmContainer');
+                            dmContainer.innerHTML = `
+                                <div class="space-y-3">
+                                    <div class="text-[10px] text-center text-slate-500 my-1">오늘</div>
+                                    
+                                    <!-- Bot Message Bubble -->
+                                    <div class="bg-slate-800 text-slate-100 p-3 rounded-2xl rounded-tl-sm border border-slate-700 space-y-2.5">
+                                        <p class="text-[11px] leading-relaxed">
+                                            안녕하세요 @guest_user님! 프리미엄 네일케어 숍 <b>네일더리플(@__the_ripple)</b>입니다. ✨<br><br>
+                                            문의해주셔서 감사합니다. 아래 원하시는 메뉴 버튼을 클릭해 주시면 빠르게 안내해 드릴게요!
+                                        </p>
+
+                                        <!-- Interactive Action Buttons -->
+                                        <div class="space-y-1.5 pt-1">
+                                            <button onclick="openSafeLink('카카오톡 실시간 예약 채널', 'https://pf.kakao.com/_GwnxoG')" class="block w-full text-center py-2 bg-pink-600 hover:bg-pink-500 text-white font-medium rounded-xl text-[11px] transition-colors shadow-sm">
+                                                <i class="fa-solid fa-calendar-check mr-1"></i> 카카오톡 실시간 예약하기
+                                            </button>
+                                            <button onclick="openSafeLink('네일더리플 인포크링크 (이달의 아트/가격)', 'https://link.inpock.co.kr/theripple')" class="block w-full text-center py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-xl text-[11px] transition-colors">
+                                                <i class="fa-solid fa-palette mr-1"></i> 이달의 아트 & 가격표 보기
+                                            </button>
+                                            <button onclick="showToast('📍 인천 미추홀구 신기길 48 (신기시장 공영주차장 이용 가능)')" class="block w-full text-center py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium rounded-xl text-[11px] transition-colors">
+                                                <i class="fa-solid fa-location-dot mr-1"></i> 오시는 길 & 주차 안내
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }, 800);
+                    }, 600);
+
+                } else {
+                    addLog(`일반 댓글 감지 (등록된 키워드 없음 - 기본 DM 안내 발송)`, 'info');
+                }
+            }, 500);
+        }
+    </script>
+</body>
+</html>
