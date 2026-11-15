@@ -117,14 +117,19 @@
                         </p>
 
                         <!-- Keywords Pills -->
-                        <div class="space-y-1.5">
-                            <label class="text-xs text-slate-400 font-medium">감지 트리거 키워드:</label>
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <label class="text-xs text-slate-400 font-medium">감지 트리거 키워드 (클릭 시 자동입력 / × 삭제):</label>
+                            </div>
                             <div class="flex flex-wrap gap-1.5" id="keywordContainer">
-                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('예약 문의드려요!')">예약</span>
-                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('이달의 아트 가격 얼마인가요?')">가격</span>
-                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('위치 주차 가능한가요?')">위치</span>
-                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('이달의아트 디자인 보여주세요')">이달의아트</span>
-                                <span class="text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 cursor-pointer hover:border-pink-500 transition-all" onclick="fillComment('네일 시술 얼마예요?')">얼마</span>
+                                <!-- 동적 렌더링 영역 -->
+                            </div>
+                            <!-- 새 키워드 추가 입력창 -->
+                            <div class="flex gap-1.5 pt-1">
+                                <input type="text" id="newKeywordInput" placeholder="새 키워드 입력 (예: 젤제거, 연장)" onkeypress="if(event.key==='Enter') addKeyword()" class="flex-1 bg-slate-900/90 border border-slate-700 rounded-lg px-2.5 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:border-pink-500 transition-all">
+                                <button type="button" onclick="addKeyword()" class="bg-slate-700 hover:bg-pink-600 text-slate-200 hover:text-white text-xs font-medium px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1 whitespace-nowrap">
+                                    <i class="fa-solid fa-plus text-[10px]"></i> 키워드 추가
+                                </button>
                             </div>
                         </div>
 
@@ -267,6 +272,46 @@
     <script>
         let toastTimeout;
         let currentModalUrl = '';
+        let triggerKeywords = ['예약', '가격', '위치', '주차', '이달의아트', '얼마', '디자인'];
+
+        function renderKeywords() {
+            const container = document.getElementById('keywordContainer');
+            if (!container) return;
+            container.innerHTML = triggerKeywords.map(kw => `
+                <span class="inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-md bg-slate-700 text-pink-300 border border-slate-600 hover:border-pink-500 transition-all">
+                    <span class="cursor-pointer" onclick="fillComment('${kw} 문의드려요!')">${kw}</span>
+                    <button type="button" onclick="removeKeyword('${kw}')" class="text-slate-400 hover:text-rose-400 text-[10px] ml-0.5" title="키워드 삭제">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </span>
+            `).join('');
+        }
+
+        function addKeyword() {
+            const input = document.getElementById('newKeywordInput');
+            const newKw = input.value.trim();
+            if (!newKw) {
+                showToast('추가할 키워드를 입력해주세요!');
+                return;
+            }
+            if (triggerKeywords.includes(newKw)) {
+                showToast('이미 등록된 키워드입니다.');
+                input.value = '';
+                return;
+            }
+            triggerKeywords.push(newKw);
+            input.value = '';
+            renderKeywords();
+            showToast(`'${newKw}' 키워드가 감지 목록에 추가되었습니다!`);
+        }
+
+        function removeKeyword(kw) {
+            triggerKeywords = triggerKeywords.filter(item => item !== kw);
+            renderKeywords();
+            showToast(`'${kw}' 키워드가 삭제되었습니다.`);
+        }
+
+        window.addEventListener('DOMContentLoaded', renderKeywords);
 
         function showToast(message) {
             const toast = document.getElementById('toastMessage');
@@ -396,8 +441,7 @@
 
             // 2. Keyword Detection
             setTimeout(() => {
-                const keywords = ['예약', '가격', '위치', '주차', '이달의아트', '얼마', '디자인'];
-                const matched = keywords.filter(kw => userComment.includes(kw));
+                const matched = triggerKeywords.filter(kw => userComment.includes(kw));
 
                 if (matched.length > 0) {
                     addLog(`키워드 감지 성공: [${matched.join(', ')}]`, 'trigger');
